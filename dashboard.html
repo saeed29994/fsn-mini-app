@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlySky Network - Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="telegram-fix.js"></script>
+    <script src="global-functions.js"></script>
+    <script src="mining-functions.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial; background: #0a0e17; color: white; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { background: #4361ee; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .card { background: #1a1f35; padding: 20px; border-radius: 10px; margin-bottom: 15px; }
+        .btn { background: #4361ee; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin: 5px; font-size: 16px; }
+        .btn:disabled { background: #666; cursor: not-allowed; }
+        .btn-success { background: #00d4aa; }
+        .btn-warning { background: #ffb74d; }
+        .btn-danger { background: #f44336; }
+        .btn-block { width: 100%; margin: 10px 0; }
+        .hidden { display: none; }
+        .status-bar { 
+            background: rgba(255,255,255,0.1); 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+            font-size: 14px; 
+        }
+        .timer { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: #00d4aa; 
+            margin: 10px 0; 
+        }
+        .ad-counter { 
+            background: rgba(0,212,170,0.1); 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+            text-align: center; 
+        }
+        .package-badge { 
+            display: inline-block; 
+            padding: 5px 10px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin-left: 10px; 
+        }
+        .economy { background: #4CAF50; }
+        .business { background: #2196F3; }
+        .first { background: #FF9800; }
+        .loading { 
+            display: inline-block; 
+            width: 20px; 
+            height: 20px; 
+            border: 3px solid #f3f3f3; 
+            border-top: 3px solid #4361ee; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+            margin-left: 10px; 
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #1a1f35;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .ad-simulation {
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a237e, #311b92);
+            border-radius: 10px;
+            border: 2px solid #4361ee;
+        }
+        .ad-progress {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        .ad-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4361ee, #00d4aa);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .ad-image {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(135deg, #0a0e17, #1a1f35);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 15px 0;
+            border: 1px solid rgba(67, 97, 238, 0.3);
+        }
+        .ad-title {
+            font-size: 18px;
+            color: #4361ee;
+            margin-bottom: 10px;
+        }
+        .ad-description {
+            font-size: 12px;
+            color: #8a94b3;
+            text-align: center;
+            padding: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-plane"></i> FlySky Network</h1>
+            <p>Welcome, <span id="username">User</span> 
+                <span id="package-badge" class="package-badge economy">Economy</span>
+                <span style="font-size: 12px; background: #4CAF50; padding: 3px 8px; border-radius: 10px; margin-left: 10px;">
+                    <i class="fas fa-wifi"></i> Offline Ads
+                </span>
+            </p>
+        </header>
+        
+        <div class="stats">
+            <div class="card">
+                <h3>Balance</h3>
+                <h2 id="balance">0</h2>
+                <p>FSN</p>
+            </div>
+            <div class="card">
+                <h3>Package</h3>
+                <h2 id="package">Economy</h2>
+                <p id="package-reward">10 FSN per 12h</p>
+            </div>
+            <div class="card">
+                <h3>Daily Stats</h3>
+                <p id="ad-stats">0/15 ads</p>
+                <p id="mining-stats">0 mining today</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3><i class="fas fa-hammer"></i> Flight Mining</h3>
+            <div class="status-bar">
+                <p id="mining-status">Ready to mine</p>
+                <div class="timer" id="mining-timer"></div>
+            </div>
+            <button class="btn btn-block" id="mining-btn">
+                <i class="fas fa-hammer"></i> Mine Now
+            </button>
+            <p style="font-size: 12px; color: #8a94b3; margin-top: 10px;">
+                Cooldown: 12 hours between mining sessions
+            </p>
+        </div>
+        
+        <div class="card">
+            <h3><i class="fas fa-tv"></i> Watch & Earn</h3>
+            <div class="ad-counter">
+                <p id="ad-status">0/15 ads watched today</p>
+                <p id="ad-reward">Reward: 1 FSN per ad</p>
+                <p style="font-size: 11px; color: #8a94b3; margin-top: 5px;">
+                    <i class="fas fa-info-circle"></i> Simulated ads system
+                </p>
+                <p id="ad-loading" style="display: none; color: #00d4aa;">
+                    <span class="loading"></span> Loading ad...
+                </p>
+            </div>
+            <button class="btn btn-success btn-block" id="ad-btn">
+                <i class="fas fa-play-circle"></i> Watch Ad (1 FSN)
+            </button>
+            <p style="font-size: 12px; color: #8a94b3; margin-top: 10px;">
+                Watch simulated ads to earn 1 FSN each. Daily limits apply based on your package.
+            </p>
+        </div>
+        
+        <div class="card">
+            <h3>Quick Actions</h3>
+            <button class="btn" id="upgrade-btn">
+                <i class="fas fa-crown"></i> Upgrade Package
+            </button>
+            <button class="btn btn-success" id="home-btn">
+                <i class="fas fa-home"></i> Home
+            </button>
+            <button class="btn btn-warning" id="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+        
+        <div class="card" id="guest-warning" style="display:none; border: 2px solid #ffb74d;">
+            <h3><i class="fas fa-exclamation-triangle"></i> Guest Mode</h3>
+            <p>You are using guest mode with limited features. Login with Telegram for full access.</p>
+            <button class="btn" id="telegram-login-btn">
+                <i class="fab fa-telegram"></i> Login with Telegram
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal for simulated ads -->
+    <div class="modal" id="ad-modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-tv"></i> Watch Advertisement</h3>
+            <p id="modal-message">Watch this ad for 15 seconds to earn 1 FSN</p>
+            
+            <div class="ad-simulation">
+                <div class="ad-title" id="ad-title">FlySky Network Premium</div>
+                <div class="ad-image">
+                    <i class="fas fa-plane" style="font-size: 48px; color: #4361ee; margin-bottom: 10px;"></i>
+                    <div style="font-size: 14px; color: white;">Sponsored Content</div>
+                </div>
+                <div class="ad-description" id="ad-description">
+                    Upgrade to Business package for 5x more rewards! 
+                    Mine 50 FSN every 12 hours and watch 100 ads daily.
+                </div>
+                
+                <div class="ad-progress">
+                    <div class="ad-progress-bar" id="ad-progress-bar"></div>
+                </div>
+                
+                <div class="timer" id="ad-timer">15s</div>
+                <p style="font-size: 12px; color: #8a94b3; margin-top: 5px;">
+                    Please watch the full ad to receive reward
+                </p>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-danger" id="skip-ad-btn">
+                    <i class="fas fa-times"></i> Skip Ad (No Reward)
+                </button>
+                <button class="btn btn-success" id="complete-ad-btn" style="display: none;">
+                    <i class="fas fa-check"></i> Complete & Get 1 FSN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulated Ad System - Works 100% offline
+        class SimulatedAdSystem {
+            constructor() {
+                this.adTemplates = [
+                    {
+                        title: "FlySky Network Premium",
+                        description: "Upgrade to Business package for 5x more rewards! Mine 50 FSN every 12 hours.",
+                        icon: "fa-plane",
+                        color: "#4361ee"
+                    },
+                    {
+                        title: "Earn More FSN",
+                        description: "Refer friends and earn 10% commission on their mining rewards!",
+                        icon: "fa-user-plus",
+                        color: "#00d4aa"
+                    },
+                    {
+                        title: "Daily Bonus",
+                        description: "Login daily to claim bonus rewards up to 100 FSN!",
+                        icon: "fa-gift",
+                        color: "#ffb74d"
+                    },
+                    {
+                        title: "Adventure Awaits",
+                        description: "New virtual flight routes available! Explore and earn more.",
+                        icon: "fa-globe",
+                        color: "#f44336"
+                    },
+                    {
+                        title: "Limited Time Offer",
+                        description: "50% bonus on first package upgrade! Offer ends soon.",
+                        icon: "fa-clock",
+                        color: "#9c27b0"
+                    }
+                ];
+                
+                this.currentAd = null;
+                this.adTimer = null;
+                this.adTimeLeft = 15;
+                this.adProgress = 0;
+            }
+            
+            getRandomAd() {
+                const randomIndex = Math.floor(Math.random() * this.adTemplates.length);
+                return this.adTemplates[randomIndex];
+            }
+            
+            showAd() {
+                return new Promise((resolve) => {
+                    // Get random ad template
+                    this.currentAd = this.getRandomAd();
+                    
+                    // Show modal
+                    const modal = document.getElementById('ad-modal');
+                    const adTitle = document.getElementById('ad-title');
+                    const adDescription = document.getElementById('ad-description');
+                    const adTimer = document.getElementById('ad-timer');
+                    const progressBar = document.getElementById('ad-progress-bar');
+                    const skipBtn = document.getElementById('skip-ad-btn');
+                    const completeBtn = document.getElementById('complete-ad-btn');
+                    const modalMessage = document.getElementById('modal-message');
+                    
+                    // Set ad content
+                    adTitle.textContent = this.currentAd.title;
+                    adDescription.textContent = this.currentAd.description;
+                    adTitle.style.color = this.currentAd.color;
+                    
+                    // Reset values
+                    this.adTimeLeft = 15;
+                    this.adProgress = 0;
+                    adTimer.textContent = this.adTimeLeft + 's';
+                    progressBar.style.width = '0%';
+                    completeBtn.style.display = 'none';
+                    modalMessage.textContent = 'Watch this ad for 15 seconds to earn 1 FSN';
+                    
+                    // Show modal
+                    modal.style.display = 'flex';
+                    
+                    // Start countdown
+                    this.adTimer = setInterval(() => {
+                        this.adTimeLeft--;
+                        this.adProgress = ((15 - this.adTimeLeft) / 15) * 100;
+                        
+                        adTimer.textContent = this.adTimeLeft + 's';
+                        progressBar.style.width = this.adProgress + '%';
+                        
+                        if (this.adTimeLeft <= 0) {
+                            clearInterval(this.adTimer);
+                            completeBtn.style.display = 'block';
+                            modalMessage.textContent = 'Ad completed! Click Complete to get 1 FSN';
+                        }
+                    }, 1000);
+                    
+                    // Handle completion
+                    completeBtn.onclick = () => {
+                        clearInterval(this.adTimer);
+                        modal.style.display = 'none';
+                        resolve({ 
+                            success: true, 
+                            watched: true,
+                            adType: 'simulated',
+                            reward: 1
+                        });
+                    };
+                    
+                    // Handle skip
+                    skipBtn.onclick = () => {
+                        clearInterval(this.adTimer);
+                        modal.style.display = 'none';
+                        resolve({ 
+                            success: false, 
+                            watched: false,
+                            adType: 'simulated',
+                            reward: 0
+                        });
+                    };
+                });
+            }
+        }
+        
+        // Initialize Ad System
+        window.adSystem = new SimulatedAdSystem();
+        
+        // Define global functions
+        function startMining() {
+            if (!window.miningSystem) {
+                alert("Mining system not loaded. Please refresh the page.");
+                return;
+            }
+            
+            const miningBtn = document.getElementById('mining-btn');
+            miningBtn.disabled = true;
+            miningBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mining...';
+            
+            setTimeout(() => {
+                const result = window.miningSystem.startMining();
+                
+                if (result.success) {
+                    alert("Mining successful! +" + result.reward + " FSN\nNew balance: " + result.balance + " FSN");
+                    updateDashboard();
+                } else {
+                    alert("Mining failed: " + result.message);
+                    updateMiningStatus();
+                }
+                
+                miningBtn.disabled = false;
+                miningBtn.innerHTML = '<i class="fas fa-hammer"></i> Mine Now';
+            }, 2000);
+        }
+        
+        async function watchAd() {
+            const adBtn = document.getElementById('ad-btn');
+            const adLoading = document.getElementById('ad-loading');
+            
+            // Check if user can watch ad
+            if (!window.miningSystem) {
+                alert("System not loaded. Please refresh.");
+                return;
+            }
+            
+            const adCheck = window.miningSystem.canWatchAd();
+            if (!adCheck.canWatch) {
+                alert(adCheck.message);
+                return;
+            }
+            
+            // Show loading
+            adBtn.disabled = true;
+            adLoading.style.display = 'block';
+            
+            try {
+                // Show simulated ad
+                const adResult = await window.adSystem.showAd();
+                
+                if (adResult.success && adResult.watched) {
+                    // Reward user for watching ad
+                    const miningResult = window.miningSystem.watchAd();
+                    
+                    if (miningResult.success) {
+                        updateDashboard();
+                        alert("Ad completed! +1 FSN\nNew balance: " + miningResult.balance + " FSN\nAds remaining today: " + miningResult.ads_remaining);
+                    }
+                } else if (!adResult.watched) {
+                    alert("Ad was skipped. No reward given.");
+                }
+            } catch (error) {
+                console.error('Ad error:', error);
+                alert("Ad error occurred. Please try again.");
+            } finally {
+                adBtn.disabled = false;
+                adLoading.style.display = 'none';
+            }
+        }
+        
+        function upgradePackage() {
+            alert("Package upgrade feature coming soon!\n\nEconomy: 10 FSN per 12h, 15 ads/day\nBusiness: 50 FSN per 12h, 100 ads/day\nFirst: 100 FSN per 12h, 500 ads/day");
+        }
+        
+        function goHome() {
+            window.location.href = '/';
+        }
+        
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.clear();
+                window.location.href = '/';
+            }
+        }
+        
+        // Check if user is logged in
+        const token = localStorage.getItem('flysky_token');
+        const user = JSON.parse(localStorage.getItem('flysky_user') || '{}');
+        const isGuest = localStorage.getItem('flysky_guest_mode') === 'true';
+        
+        if (!token) {
+            window.location.href = '/';
+        }
+        
+        // Update UI with user data
+        function updateDashboard() {
+            const user = JSON.parse(localStorage.getItem('flysky_user') || '{}');
+            
+            // Update basic info
+            document.getElementById('username').textContent = user.telegram_first_name || 'Guest';
+            document.getElementById('balance').textContent = user.fsn_balance || 0;
+            document.getElementById('package').textContent = user.current_package ? user.current_package.charAt(0).toUpperCase() + user.current_package.slice(1) : 'Economy';
+            
+            // Update package badge
+            const packageBadge = document.getElementById('package-badge');
+            packageBadge.textContent = user.current_package ? user.current_package.charAt(0).toUpperCase() + user.current_package.slice(1) : 'Economy';
+            packageBadge.className = 'package-badge ' + (user.current_package || 'economy');
+            
+            // Update package reward info
+            const packageConfigs = {
+                'economy': '10 FSN per 12h',
+                'business': '50 FSN per 12h',
+                'first': '100 FSN per 12h'
+            };
+            document.getElementById('package-reward').textContent = 
+                packageConfigs[user.current_package || 'economy'];
+            
+            // Update mining status
+            updateMiningStatus();
+            
+            // Update ad status
+            updateAdStatus();
+            
+            // Update daily stats
+            updateDailyStats();
+            
+            if (isGuest) {
+                document.getElementById('guest-warning').style.display = 'block';
+            }
+        }
+        
+        // Update mining status and timer
+        function updateMiningStatus() {
+            if (!window.miningSystem) return;
+            
+            const user = JSON.parse(localStorage.getItem('flysky_user') || '{}');
+            const miningCheck = window.miningSystem.canMine();
+            const miningBtn = document.getElementById('mining-btn');
+            const miningStatus = document.getElementById('mining-status');
+            const miningTimer = document.getElementById('mining-timer');
+            
+            if (miningCheck.canMine) {
+                const config = window.miningSystem.packageConfigs[user.current_package || 'economy'];
+                miningStatus.textContent = "Ready to mine " + config.mining_reward + " FSN";
+                miningTimer.textContent = '';
+                miningBtn.disabled = false;
+            } else {
+                miningStatus.textContent = 'Mining cooldown active';
+                const remaining = miningCheck.remaining;
+                miningTimer.textContent = remaining.hours + "h " + remaining.minutes + "m " + remaining.seconds + "s";
+                miningBtn.disabled = true;
+                
+                setTimeout(updateMiningStatus, 1000);
+            }
+        }
+        
+        // Update ad status
+        function updateAdStatus() {
+            if (!window.miningSystem) return;
+            
+            const adCheck = window.miningSystem.canWatchAd();
+            const adStatus = document.getElementById('ad-status');
+            const adBtn = document.getElementById('ad-btn');
+            
+            if (adCheck.canWatch) {
+                adStatus.textContent = adCheck.watched + "/" + adCheck.limit + " ads watched today";
+                adBtn.disabled = false;
+            } else {
+                adStatus.textContent = adCheck.message;
+                adBtn.disabled = true;
+            }
+        }
+        
+        // Update daily stats
+        function updateDailyStats() {
+            const user = JSON.parse(localStorage.getItem('flysky_user') || '{}');
+            const adStats = document.getElementById('ad-stats');
+            const miningStats = document.getElementById('mining-stats');
+            
+            if (user.daily_stats) {
+                const config = window.miningSystem?.packageConfigs[user.current_package || 'economy'];
+                adStats.textContent = (user.daily_stats.ads_watched || 0) + "/" + (config?.max_ads_daily || 15) + " ads";
+                miningStats.textContent = (user.daily_stats.mining_today || 0) + " mining today";
+            }
+        }
+        
+        // Initialize dashboard on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add event listeners
+            document.getElementById('mining-btn').addEventListener('click', startMining);
+            document.getElementById('ad-btn').addEventListener('click', watchAd);
+            document.getElementById('upgrade-btn').addEventListener('click', upgradePackage);
+            document.getElementById('home-btn').addEventListener('click', goHome);
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('telegram-login-btn').addEventListener('click', function() {
+                window.location.href = '/';
+            });
+            
+            updateDashboard();
+            
+            // Initialize Telegram WebApp
+            if (window.Telegram?.WebApp) {
+                Telegram.WebApp.expand();
+                Telegram.WebApp.setBackgroundColor('#0a0e17');
+                Telegram.WebApp.ready();
+            }
+            
+            // Update mining timer
+            setInterval(() => {
+                const miningTimer = document.getElementById('mining-timer');
+                if (miningTimer.textContent) {
+                    updateMiningStatus();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
